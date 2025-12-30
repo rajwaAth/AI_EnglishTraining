@@ -1,7 +1,7 @@
 import os
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, UploadFile, File, Depends, Form
 from sqlalchemy.orm import Session
 
 from app.database.deps import get_db
@@ -9,6 +9,8 @@ from app.database.models import Message
 from app.services.sst_service import transcribe_audio
 from app.routes.chat import chat_text
 from app.schemas.chat import ChatRequest
+from app.schemas.voice import TranscribeResponse
+from app.services.fluency_service import compute_fluency_score
 
 router = APIRouter()
 
@@ -60,3 +62,30 @@ def chat_voice(
     )
 
     return chat_text(payload, db)
+
+
+@router.post("/transcribe", response_model=TranscribeResponse)
+def transcribe_voice(
+    audio_file: UploadFile = File(...),
+    duration_ms: int | None = Form(None),
+):
+    # save file audio
+    extension = _guess_extension(audio_file)
+    filename = f"{uuid.uuid4()}{extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as f:
+        f.write(audio_file.file.read())
+
+    transcript = transcribe_audio(file_path)
+    score = compute_fluency_score(transcript=transcript, duration_ms=duration_ms)
+
+    return TranscribeResponse(
+        transcript=transcript,
+        fluency_score=score["fluency_score"],
+        level=score["level"],
+        word_count=score["word_count"],
+        filler_count=score["filler_count"],
+        wpm=score["wpm"],
+        duration_ms=score["duration_ms"],
+    )

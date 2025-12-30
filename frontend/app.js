@@ -2,6 +2,7 @@ const els = {
   statusPill: document.getElementById("statusPill"),
   clearBtn: document.getElementById("clearBtn"),
   chatScroll: document.getElementById("chatScroll"),
+  emptyState: document.getElementById("emptyState"),
   messages: document.getElementById("messages"),
   composer: document.getElementById("composer"),
   textInput: document.getElementById("textInput"),
@@ -73,21 +74,25 @@ function bubbleBase(role) {
     bubbleClass: [
       "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
       isUser
-        ? "bg-slate-100 text-slate-950"
-        : "border border-slate-800 bg-slate-900 text-slate-100",
+        ? "border border-indigo-400/30 bg-indigo-500/15 text-indigo-50"
+        : "border border-white/10 bg-zinc-950/25 text-slate-100",
     ].join(" "),
-    metaClass: `mt-1 text-[11px] ${isUser ? "text-slate-400" : "text-slate-500"}`,
+    metaClass: `mt-1 text-[11px] ${isUser ? "text-indigo-200/60" : "text-slate-300/50"}`,
   };
 }
 
 function renderMessages() {
+  if (els.emptyState) {
+    els.emptyState.classList.toggle("hidden", uiMessages.length > 0);
+  }
+
   els.messages.innerHTML = uiMessages
     .map((m) => {
       const { wrapperClass, bubbleClass, metaClass } = bubbleBase(m.role);
       const title = m.role === "user" ? "You" : m.role === "assistant" ? "AI" : "System";
 
       const extra = m.extra
-        ? `<div class="mt-2 rounded-xl border border-slate-800 bg-slate-950/30 px-3 py-2 text-xs text-slate-300">
+        ? `<div class="mt-2 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2 text-xs text-indigo-100/90">
             ${m.extra}
           </div>`
         : "";
@@ -95,7 +100,7 @@ function renderMessages() {
       return `
         <div class="${wrapperClass}">
           <div class="${bubbleClass}">
-            <div class="text-xs font-semibold ${m.role === "user" ? "text-slate-700" : "text-slate-300"}">${escapeHtml(title)}</div>
+            <div class="text-xs font-semibold ${m.role === "user" ? "text-indigo-200" : "text-slate-200"}">${escapeHtml(title)}</div>
             <div class="mt-1 whitespace-pre-wrap break-words">${m.pending ? '<span class="inline-flex gap-1 text-slate-300"><span class="animate-pulse">•</span><span class="animate-pulse [animation-delay:120ms]">•</span><span class="animate-pulse [animation-delay:240ms]">•</span></span>' : escapeHtml(m.text)}</div>
             ${extra}
             <div class="${metaClass}">${escapeHtml(m.time)}</div>
@@ -180,6 +185,34 @@ function makeChatExtra(resp) {
     parts.push(`<div class="mt-1"><span class="text-slate-500">Category:</span> ${escapeHtml(resp.error_categories.join(", "))}</div>`);
   }
   if (!parts.length) return "";
+  return parts.join("");
+}
+
+function makeVoiceScoreExtra(transcribeResp) {
+  const score = transcribeResp?.fluency_score;
+  const level = transcribeResp?.level;
+  const wpm = transcribeResp?.wpm;
+
+  if (score === undefined || score === null) return "";
+
+  const parts = [];
+  parts.push(
+    `<div class="flex flex-wrap items-center gap-2">
+      <span class="inline-flex items-center rounded-full border border-violet-400/60 bg-violet-500/25 px-2 py-0.5 text-[11px] font-semibold text-violet-200">Pace</span>
+      <span class="text-xs font-semibold text-slate-100">${escapeHtml(String(score))}/100</span>
+      ${level ? `<span class="text-xs font-medium text-violet-200/90">(${escapeHtml(String(level))})</span>` : ""}
+    </div>`
+  );
+
+  if (wpm !== undefined && wpm !== null) {
+    parts.push(
+      `<div class="mt-2 flex items-center gap-2">
+        <span class="inline-flex items-center rounded-full border border-cyan-400/60 bg-cyan-500/25 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">WPM</span>
+        <span class="text-xs font-semibold text-slate-100">${escapeHtml(String(wpm))}</span>
+      </div>`
+    );
+  }
+
   return parts.join("");
 }
 
@@ -285,6 +318,8 @@ async function stopRecordingAndSend() {
   window.clearInterval(recordingTimer);
   recordingTimer = null;
 
+  const durationMs = recordingStartMs ? Math.max(0, Date.now() - recordingStartMs) : null;
+
   const mimeType = mediaRecorder.mimeType;
   const stopPromise = new Promise((resolve) => {
     mediaRecorder.addEventListener("stop", resolve, { once: true });
@@ -297,26 +332,33 @@ async function stopRecordingAndSend() {
   const sessionId = getSessionId();
   const apiBase = getApiBase();
 
-  // UI placeholder message
-  pushMessage("user", "(voice message)");
-  const pendingId = pushPendingAssistant();
-
   try {
+    // 1) Transcribe first
     const form = new FormData();
     const filename = `recording_${Date.now()}${extensionFromMime(mimeType)}`;
     form.append("audio_file", blob, filename);
+    if (durationMs !== null) form.append("duration_ms", String(durationMs));
 
-    const url = new URL(`${apiBase}/voice`);
-    url.searchParams.set("session_id", sessionId);
+    const transcribeUrl = new URL(`${apiBase}/voice/transcribe`);
+    const transcribeResp = await postForm(transcribeUrl.toString(), form);
+    const transcript = (transcribeResp?.transcript || "").trim();
 
-    const resp = await postForm(url.toString(), form);
-    const reply = resp?.chat_reply ?? "(no reply)";
-    resolvePending(pendingId, reply, makeChatExtra(resp));
+    if (!transcript) {
+      pushMessage("system", "Transcript kosong. Coba ulangi rekaman dengan suara lebih jelas.");
+      return;
+    }
+
+    // Show transcript + fluency score as user's message
+    pushMessage("user", transcript, makeVoiceScoreExtra(transcribeResp));
+
+    // 2) Then ask AI
+    const pendingId = pushPendingAssistant();
+    const chatResp = await postJson(`${apiBase}/chat`, { session_id: sessionId, user_input: transcript });
+    const reply = chatResp?.chat_reply ?? "(no reply)";
+    resolvePending(pendingId, reply, makeChatExtra(chatResp));
   } catch (err) {
     console.error(err);
     setStatus("Error", "error");
-    uiMessages = uiMessages.filter((m) => m.id !== pendingId);
-    renderMessages();
     pushMessage("system", `Voice gagal: ${String(err?.message || err)}`);
   } finally {
     setBusy(false);
@@ -350,11 +392,8 @@ function autoGrowTextarea(el) {
 }
 
 function init() {
-  const sessionId = getSessionId();
-  pushMessage(
-    "assistant",
-    "Halo! Kirim kalimat English kamu, nanti aku bantu koreksi grammar dan balas dengan ramah. Kamu juga bisa pakai voice."
-  );
+  getSessionId();
+  renderMessages();
 
   els.clearBtn.addEventListener("click", () => {
     uiMessages = [];
