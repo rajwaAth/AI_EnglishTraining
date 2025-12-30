@@ -40,7 +40,7 @@ Respond using this exact JSON format:
 
 router = APIRouter()
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
 def chat_text(payload: ChatRequest, db: Session = Depends(get_db)):
     # save the message user to the database
     user_message = Message(

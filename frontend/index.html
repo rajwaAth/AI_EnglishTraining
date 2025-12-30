@@ -1,62 +1,88 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>English Grammar Chatbot</title>
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lumoshive Final Project • Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Hide scrollbar but keep scrolling (chat area) */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none; /* IE/Edge legacy */
+        scrollbar-width: none; /* Firefox */
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="min-h-screen">
+      <div class="mx-auto flex h-screen max-w-3xl flex-col px-4 py-6">
+        <header class="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 px-4 py-3">
+          <div class="flex min-w-0 flex-col">
+            <h1 class="truncate text-base font-semibold tracking-tight">AI English Grammar Chatbot</h1>
+            <p class="truncate text-xs text-slate-400">Text & Voice • Minimal modern UI</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="statusPill" class="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-300">
+              <span class="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
+              Ready
+            </span>
+            <button
+              id="clearBtn"
+              class="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:border-slate-500"
+              type="button"
+              title="Clear UI (does not delete DB)"
+            >
+              Clear
+            </button>
+          </div>
+        </header>
 
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+        <main class="mt-4 flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/30">
+          <div id="chatScroll" class="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <div id="messages" class="flex flex-col gap-3"></div>
+          </div>
 
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css">
-</head>
+          <div class="border-t border-slate-800 p-3">
+            <form id="composer" class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <div class="flex-1">
+                  <label for="textInput" class="sr-only">Message</label>
+                  <textarea
+                    id="textInput"
+                    rows="1"
+                    class="h-10 min-h-10 w-full resize-none overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/40 px-4 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-slate-500"
+                    placeholder="Ketik pesan... (Enter untuk kirim, Shift+Enter untuk baris baru)"
+                  ></textarea>
+                </div>
 
-<body class="bg-gray-100 flex justify-center items-center min-h-screen">
+                <button
+                  id="voiceBtn"
+                  type="button"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-500"
+                  title="Record voice"
+                >
+                  <span id="voiceIcon" class="text-sm font-semibold">🎙</span>
+                </button>
 
-  <div class="w-full max-w-xl bg-white shadow-lg rounded-lg flex flex-col">
+                <button
+                  id="sendBtn"
+                  class="inline-flex h-10 items-center justify-center rounded-2xl bg-slate-100 px-4 text-sm font-semibold text-slate-950 hover:bg-white disabled:opacity-50"
+                  type="submit"
+                >
+                  Send
+                </button>
+              </div>
 
-    <!-- Header -->
-    <div class="p-4 border-b text-center font-semibold text-lg">
-      English Grammar Chatbot
+              <p id="hint" class="text-xs text-slate-500"></p>
+            </form>
+          </div>
+        </main>
+      </div>
     </div>
 
-    <!-- Chat Area -->
-    <div id="chatBox" class="flex-1 p-4 space-y-3 overflow-y-auto"></div>
-
-    <!-- Input Area -->
-    <div class="p-4 border-t flex gap-2">
-      <input
-        id="textInput"
-        type="text"
-        placeholder="Type your sentence..."
-        class="flex-1 border rounded px-3 py-2 focus:outline-none"
-      />
-
-      <button
-        id="sendBtn"
-        class="bg-blue-500 text-white px-4 rounded"
-      >
-        Send
-      </button>
-
-      <input
-        type="file"
-        id="audioInput"
-        accept="audio/wav"
-        class="hidden"
-      />
-
-      <button
-        id="voiceBtn"
-        class="bg-green-500 text-white px-3 rounded"
-      >
-        🎤
-      </button>
-    </div>
-
-  </div>
-
-  <!-- JS -->
-  <script src="js/app.js"></script>
-</body>
+    <script src="./app.js" type="module"></script>
+  </body>
 </html>

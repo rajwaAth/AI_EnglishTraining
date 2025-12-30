@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.chat import router as chat_router
 from app.database import models
@@ -9,6 +10,14 @@ app = FastAPI(
     title="AI English Grammar Chatbot",
     description="Chatbot for grammar correction and conversation",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # adjust in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 models.Base.metadata.create_all(bind=engine)

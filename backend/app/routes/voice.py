@@ -1,5 +1,6 @@
 import os
 import uuid
+from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Depends
 from sqlalchemy.orm import Session
 
@@ -14,14 +15,36 @@ router = APIRouter()
 UPLOAD_DIR = "storage/audio"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.post("/voice")
+
+def _guess_extension(audio_file: UploadFile) -> str:
+    original = (audio_file.filename or "").strip()
+    suffix = Path(original).suffix.lower()
+    if suffix:
+        return suffix
+
+    content_type = (audio_file.content_type or "").lower()
+    content_type_map = {
+        "audio/webm": ".webm",
+        "audio/ogg": ".ogg",
+        "audio/mpeg": ".mp3",
+        "audio/mp3": ".mp3",
+        "audio/wav": ".wav",
+        "audio/x-wav": ".wav",
+        "audio/mp4": ".m4a",
+        "audio/aac": ".aac",
+    }
+
+    return content_type_map.get(content_type, ".audio")
+
+@router.post("")
 def chat_voice(
     session_id: str,
     audio_file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     # save file audio
-    filename = f"{uuid.uuid4()}.wav"
+    extension = _guess_extension(audio_file)
+    filename = f"{uuid.uuid4()}{extension}"
     file_path = os.path.join(UPLOAD_DIR, filename)
 
     with open(file_path, "wb") as f:
