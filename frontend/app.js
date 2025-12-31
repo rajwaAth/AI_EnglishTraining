@@ -16,10 +16,8 @@ const STORAGE_KEYS = {
   sessionId: "fp_session_id",
 };
 
-// Frontend ini tidak menampilkan input API base.
-// Default akan mengarah ke host yang sama pada port 8000.
-// Jika backend kamu beda host/port, ubah nilai ini.
-const API_BASE = `http://${window.location.hostname}:8000`;
+
+const API_BASE = "";
 
 function createSessionId() {
   // reasonably unique, no dependencies
@@ -339,8 +337,8 @@ async function stopRecordingAndSend() {
     form.append("audio_file", blob, filename);
     if (durationMs !== null) form.append("duration_ms", String(durationMs));
 
-    const transcribeUrl = new URL(`${apiBase}/voice/transcribe`);
-    const transcribeResp = await postForm(transcribeUrl.toString(), form);
+    // Use relative URL (works when frontend is served from the FastAPI app)
+    const transcribeResp = await postForm(`${apiBase}/voice/transcribe`, form);
     const transcript = (transcribeResp?.transcript || "").trim();
 
     if (!transcript) {
